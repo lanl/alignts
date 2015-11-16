@@ -251,7 +251,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
                           uniform_scale,state_scale,N_k)
     latent_z <- m_step_z(K,M,Q,state_prob,x,uniform_scale,
                          state_scale,noise,lambda,periodic)
-    if (FALSE) state_scale <- m_step_phi(K,M,Q,state_prob,x,uniform_scale,
+    if (Q > 1) state_scale <- m_step_phi(K,M,Q,state_prob,x,uniform_scale,
                          latent_z,noise,lambda,periodic)
     uniform_scale <- m_step_u(K,M,Q,state_prob,x,latent_z,state_tau,
                               state_scale,N_k,lambda,noise,periodic)
