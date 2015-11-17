@@ -201,7 +201,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
   }
   if(is.null(init_t_range)) init_t_range <- max(floor(0.1*n_times),J)
   K <- length(x)               # Number of replicate time series
-  M <- floor(upsample_factor*max(lengths(x)))+2*buffer # Number of latent times
+  M <- floor(upsample_factor*n_times)+2*buffer # Number of latent times
   N_k <- lengths(x)            # lengths of each replicate series
   Q <- length(scales)          # Number of latent scales
   ind <- which.max(lengths(x)) # Find longest series for initializing latent profile
@@ -226,7 +226,6 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
   }
   t_list <- t
   t <- 1:n_times
-  
   # Normalize transition probabilities for tau and scale states
   transition_tau <- transition_tau/sum(transition_tau)
   transition_scale <- transition_scale/sum(transition_scale*c(1,2))

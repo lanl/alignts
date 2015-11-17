@@ -92,7 +92,6 @@ DO i=1,S
 ENDDO
 
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!
 ! Run forward-backward algoritm for calculating the state probabilities
 ! k iterates over the time series
@@ -112,6 +111,8 @@ DO kk=1,K
                 u(kk)*phi(i))**2/(2.0d0*noise))
         ENDIF
     ENDDO
+    prob_sum = SUM(forward_mat(1,1:S,kk))
+    if(prob_sum .GT. 0) forward_mat(1,1:S,kk) = forward_mat(1,1:S,kk)/prob_sum
     backward_mat(:,N,kk) = 1.0d0
     ! Iterate over observations in each replicate series
     DO i=2,N
@@ -144,7 +145,7 @@ DO kk=1,K
             prob_sum = SUM(forward_mat(i,:,kk))
             if(prob_sum .GT. 0) forward_mat(i,1:S,kk) = forward_mat(i,1:S,kk)/prob_sum
         ENDIF
-        IF (x(N-i+1,kk) .LT. -1.d+24) THEN
+        IF (x(N-i+2,kk) .LT. -1.d+24) THEN
             DO j=1,S
                 ii = (j-1)*ntars+1
                 iii = (j-1)*ntars+ntars
