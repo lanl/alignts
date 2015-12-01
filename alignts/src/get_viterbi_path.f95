@@ -8,11 +8,11 @@ USE OMP_LIB
 INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
 INTEGER, INTENT(IN) :: states(M*Q,2)
 INTEGER, INTENT(OUT) :: best_path(N,K)
-INTEGER :: i, j, kk,ii
+INTEGER(KIND=4) :: i, j, kk,ii
 INTEGER(KIND=4) :: S
-INTEGER :: target_ind, target_m, target_q,init_t_range
-INTEGER :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
-INTEGER :: tar_inds(n_tau*3)
+INTEGER(KIND=4) :: target_ind, target_m, target_q,init_t_range
+INTEGER(KIND=4) :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
+INTEGER(KIND=4) :: tar_inds(n_tau*3)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
 DOUBLE PRECISION :: V_mat(M*Q,N,K), possible_paths(M*Q,N,K), log_likelihood(n_tau*3,K)

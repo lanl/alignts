@@ -6,11 +6,11 @@ SUBROUTINE e_step(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,phi,t_ta
 
 USE OMP_LIB
 INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
-INTEGER :: i, j, kk, ii,iii
+INTEGER(KIND=4) :: i, j, kk, ii,iii
 INTEGER(KIND=4) :: S
-INTEGER :: target_ind, target_m, target_q, init_t_range
+INTEGER(KIND=4) :: target_ind, target_m, target_q, init_t_range
 INTEGER, INTENT(IN) :: states(M*Q,2)
-INTEGER :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
+INTEGER(KIND=4) :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
 DOUBLE PRECISION, INTENT(OUT) :: state_prob(M*Q,N,K)

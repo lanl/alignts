@@ -6,11 +6,11 @@ SUBROUTINE e_step_serial(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,p
 
 USE OMP_LIB
 INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
-INTEGER :: i, j, kk, ii,iii
+INTEGER(KIND=4) :: i, j, kk, ii,iii
 INTEGER(KIND=4) :: S
-INTEGER :: target_ind, target_m, target_q, init_t_range
+INTEGER(KIND=4) :: target_ind, target_m, target_q, init_t_range
 INTEGER, INTENT(IN) :: states(M*Q,2)
-INTEGER :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
+INTEGER(KIND=4) :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
 DOUBLE PRECISION, INTENT(OUT) :: state_prob(M*Q,N,K)
@@ -125,8 +125,8 @@ DO kk=1,K
                         forward_mat(i,transition_inds(ii:iii,2)) + &
                         forward_mat(i-1,j)*transition_prob(ii:iii)
             ENDDO
-            prob_sum = SUM(forward_mat(i,:))
-            if(prob_sum .GT. 0) forward_mat(i,:) = forward_mat(i,:)/prob_sum
+            prob_sum = SUM(forward_mat(i,1:S))
+            if(prob_sum .GT. 0) forward_mat(i,1:S) = forward_mat(i,1:S)/prob_sum
         ELSE 
             DO j=1,S
                 ii = (j-1)*ntars+1
@@ -138,32 +138,32 @@ DO kk=1,K
                         forward_mat(i,transition_inds(ii:iii,2)) + &
                         forward_mat(i-1,j)*obs_likelihood(:)*transition_prob(ii:iii)
             ENDDO
-            prob_sum = SUM(forward_mat(i,:))
-            if(prob_sum .GT. 0) forward_mat(i,:) = forward_mat(i,:)/prob_sum
+            prob_sum = SUM(forward_mat(i,1:S))
+            if(prob_sum .GT. 0) forward_mat(i,1:S) = forward_mat(i,1:S)/prob_sum
         ENDIF
-        IF (x(N-i+1,kk) .LT. -1.d+24) THEN
+        IF (x(N-i+2,kk) .LT. -1.d+24) THEN
             DO j=1,S
                 ii = (j-1)*ntars+1
                 iii = (j-1)*ntars+ntars
                 backward_mat(j,N-i+1) = DOT_PRODUCT(transition_prob(ii:iii), & 
                         backward_mat(transition_inds(ii:iii,2),N-i+2))
             ENDDO
-            prob_sum = SUM(backward_mat(:,N-i+1))
-            if(prob_sum .GT. 0) backward_mat(:,N-i+1) = backward_mat(:,N-i+1)/prob_sum
+            prob_sum = SUM(backward_mat(1:S,N-i+1))
+            if(prob_sum .GT. 0) backward_mat(1:S,N-i+1) = backward_mat(1:S,N-i+1)/prob_sum
         ELSE
             ! For each state, calculate backward probability
             DO j=1,S
                 ii = (j-1)*ntars+1
                 iii = (j-1)*ntars+ntars
                 obs_likelihood(:) = &
-                        normC*EXP(-(x(N-i+1,kk) - z(states(transition_inds(ii:iii,2),1))* &
+                        normC*EXP(-(x(N-i+2,kk) - z(states(transition_inds(ii:iii,2),1))* &
                         u(kk)*phi(states(transition_inds(ii:iii,2),2)))**2/(2.0d0*noise))
                 backward_mat(j,N-i+1) = & 
                         DOT_PRODUCT(transition_prob(ii:iii), & 
                                 obs_likelihood(:)*backward_mat(transition_inds(ii:iii,2),N-i+2))
             ENDDO
-            prob_sum = SUM(backward_mat(:,N-i+1))
-            if(prob_sum .GT. 0) backward_mat(:,N-i+1) = backward_mat(:,N-i+1)/prob_sum
+            prob_sum = SUM(backward_mat(1:S,N-i+1))
+            if(prob_sum .GT. 0) backward_mat(1:S,N-i+1) = backward_mat(1:S,N-i+1)/prob_sum
         ENDIF
     ENDDO
     ! Calculate state probabilities for all times from forward and backward probabilities
