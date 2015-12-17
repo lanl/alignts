@@ -28,9 +28,8 @@ up_sample <- function (x, M) {
     fac <- M/n
     tmp <- as.vector(t(matrix(rep(x,fac),ncol=fac)))
   }else{
-    inds <- c(1:n,sample(1:n,M-n,replace=T))
-    o_inds <- order(inds)
-    tmp <- x[inds[o_inds]]
+    inds  <- rep(1:n,M/n+1)[1:M]
+    tmp <- x[sort(inds)]
   }
   tmp
 }
@@ -186,6 +185,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
                             transition_scale = c(0.5,0.25),
                             noise=NULL, init_t_range = NULL,
                             scales = 1, iters = 20,lambda=0,
+                            init_z = NULL,
                             n_times = NULL,
                             parallel=TRUE,
                             periodic=FALSE,
@@ -213,7 +213,8 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
   
   uniform_scale <- rep(1,K)    # Global scaling for each replicate series (u)
   latent_tau <- seq(min(unlist(t)),max(unlist(t)),length = M) # Latent times
-  latent_z <- up_sample(x[[1]],M)  # Latent profile vector (z)  
+  if (is.null(init_z)) init_z <- x[[1]]
+  latent_z <- up_sample(init_z,M)  # Latent profile vector (z)  
   # Create matrix for even-spacing time series with NA values for unobserved times 
   #     x_list and t_list contain raw times and observations for uneven sampling
   x_list <- x
@@ -258,7 +259,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
     change_noise <- abs(noise-old_noise)
     change_u <- abs(uniform_scale-old_uniform_scale)
     log_like <- c(log_like,expected_likelihood(K,M,Q,state_prob,x,latent_z,uniform_scale,state_scale,noise,lambda,periodic))
-    if(any(is.nan(change_u))) stop('NaN detected after M-step. Potent float underflow. Attempt to rerun; if problem persists check model parameters.')
+    if(any(is.nan(change_u))) stop('NaN detected after M-step. Potential float underflow. Attempt different initialization; if problem persists check model parameters.')
     if((log_like[iter] - old_log_like)/abs(log_like[iter]) < tol) break
     old_log_like <- log_like[iter]
     # if(max(c(change_noise,change_z,change_u))<tol) break    
