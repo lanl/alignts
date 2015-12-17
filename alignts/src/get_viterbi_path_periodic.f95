@@ -8,11 +8,11 @@ USE OMP_LIB
 INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
 INTEGER, INTENT(IN) :: states(M*Q,2)
 INTEGER, INTENT(OUT) :: best_path(N,K)
-INTEGER :: i, j, kk,ii
+INTEGER(KIND=4) :: i, j, kk,ii
 INTEGER(KIND=4) :: S
-INTEGER :: target_ind, target_m, target_q,init_t_range
-INTEGER :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
-INTEGER :: tar_inds(n_tau*3)
+INTEGER(KIND=4) :: target_ind, target_m, target_q,init_t_range
+INTEGER(KIND=4) :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
+INTEGER(KIND=4) :: tar_inds(n_tau*3)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
 DOUBLE PRECISION :: V_mat(M*Q,N,K), possible_paths(M*Q,N,K), log_likelihood(n_tau*3,K)
@@ -35,7 +35,6 @@ V_mat(:,:,:) = LOG(log_likelihood(1,1))
 states_0(0,:) = [1,1]
 states_0(1:S,:) = states
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!
 ! Calculate the transition matrix of the HMM
 !     Implementation attempts to reduce computations 
@@ -55,11 +54,7 @@ DO i=1,S
         target_m = states(i,1)+tau_step
         ! Check to see if target m is passed the last latent time
         IF (target_m .GT. M) THEN
-            p_tau=0.
-            ! This is a little sloppy - prevents array out of bounds later 
-            !     State 0 is always set to be a zero probability state that 
-            !     is the target of all out of state space steps
-            target_m= target_m - M
+            target_m = target_m - M
         ENDIF
         target_q = states(i,2)+scale_step
         ! Check to see if target q is outside the scale range

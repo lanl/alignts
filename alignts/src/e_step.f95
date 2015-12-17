@@ -5,7 +5,7 @@
 SUBROUTINE e_step(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,phi,t_tau,t_scale,state_prob)
 
 USE OMP_LIB
-INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
+INTEGER(KIND=4), INTENT(IN) :: n_tau,n_scale,M,Q,N,K
 INTEGER(KIND=4) :: i, j, kk, ii,iii
 INTEGER(KIND=4) :: S
 INTEGER(KIND=4) :: target_ind, target_m, target_q, init_t_range
