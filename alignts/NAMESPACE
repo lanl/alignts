@@ -2,7 +2,7 @@
 useDynLib(alignts, e_step_parallel = e_step, get_viterbi_path_parallel = get_viterbi_path, e_step_serial, get_viterbi_path_serial, e_step_periodic, get_viterbi_path_periodic)
 
 # Exports
-export(align_series_EM, predict_series_EM, get_residuals, 
-           plot_raw, plot_aligned_x, plot_residuals,
+export(align_series_EM, predict_series_EM, online_align, get_residuals, 
+           plot_raw, plot_aligned_x, plot_residuals, online_residuals,
            warp_example, warp_steps_illustrate)
 

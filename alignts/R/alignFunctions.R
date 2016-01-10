@@ -236,11 +236,10 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
   for (k in 2:K)   state_prob[[k]] <- matrix(1,M*Q,n_times)/(M*Q)  
 
   # Perform the E-M algorithm to fit the model parameters and obtain state probabilities
-  if(iters>1) pb <- txtProgressBar(1, iters)
-  if(iters>1) cat("Model Fitting Progress\n")
+  cat("Model Fitting Progress\n Iteration:")
   old_log_like <- -Inf
   for (iter in 1:iters){
-    if(iters>1) setTxtProgressBar(pb, iter)    
+    if(iter%%max(1,floor(iters/10)) == 0) cat(" ",iter)    
     old_noise <- noise
     old_latent_z <- latent_z
     old_uniform_scale <- uniform_scale
@@ -264,7 +263,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
     old_log_like <- log_like[iter]
     # if(max(c(change_noise,change_z,change_u))<tol) break    
   }
-  if(iters>1) close(pb)
+  if(iters>1) cat('\n')
   if(iter==iters) print("Failed to Converge!") # Warn user that E-M did not converge
 
   max_prob <- sapply(state_prob,function(x){apply(x,2,max)})
@@ -402,3 +401,103 @@ get_residuals <- function(t,x,aligned_obj, standardize=FALSE){
   if(standardize) resid <- lapply(resid,function(x){(x-mean(unlist(resid)))/sqrt(aligned_obj$noise)})
   resid
 }
+
+#####
+# Run a restricted EM to obtain the predicted alignment
+#   with the latent profile and noise parameter fixed
+#
+# NOTE: J should not need to be settable here. Should probably
+#           include it from the reference alignment model
+online_align <- function(t,x,aligned_obj, tol = 1.e-5,J=5,
+                            init_t_range=NULL,
+                            transition_tau = NULL,
+                            transition_scale = c(0.5,0.25),
+                            iters = 20, parallel=TRUE, 
+                            periodic=FALSE,
+                            get_viterbi=TRUE){
+  # Get variables from previous alignment
+  z <- aligned_obj$z
+  noise <- aligned_obj$noise
+  scales <- aligned_obj$scales
+  n_times <- nrow(aligned_obj$viterbi_z)
+  lambda <- aligned_obj$lambda
+  
+  if(is.null(init_t_range)) init_t_range <- max(floor(0.1*n_times),J)
+  M <- length(z)               # Number of latent times
+  N_k <- length(x)            # lengths of each replicate series
+  Q <- length(scales)          # Number of latent scales
+  
+  state_tau <- 1:M             # Time indices for latent profile
+  state_scale <- scales        # Possible states for scale parameter
+  if(is.null(transition_tau)) transition_tau <- rep(1/J,J)
+  log_like <- c()
+  
+  uniform_scale <- 1           # Global scaling for each replicate series (u)
+  latent_z <- z                # Latent profile vector (z)
+  latent_tau <- seq(min(unlist(t)),max(unlist(t)),length = M) # Latent times
+
+  # Create matrix for even-spacing time series with NA values for unobserved times 
+  #     x_list and t_list contain raw times and observations for uneven sampling
+  x_list <- x
+  x <- matrix(NA,nrow=n_times,ncol=1)
+  x[t,1] <- x_list
+  t <- 1:n_times
+  
+  # Normalize transition probabilities for tau and scale states
+  transition_tau <- transition_tau/sum(transition_tau)
+  transition_scale <- transition_scale/sum(transition_scale*c(1,2))
+  
+  # Build the list of state_probability matrices
+  state_prob <- list(matrix(1,M*Q,n_times)/(M*Q)) 
+  
+  # Perform the restricted E-M algorithm to fit the series specific model parameters 
+  #     and obtain state probabilities
+  old_log_like <- -Inf
+  for (iter in 1:iters){
+    old_uniform_scale <- uniform_scale
+
+    state_prob <- e_step(K=1,M,Q,x,latent_z,latent_tau,state_scale,state_prob,
+                         uniform_scale,transition_tau,transition_scale,
+                         noise,init_t_range,parallel,periodic)
+    uniform_scale <- m_step_u(K=1,M,Q,state_prob,x,latent_z,state_tau,
+                              state_scale,N_k,lambda,noise,periodic)
+    
+    change_u <- abs(uniform_scale-old_uniform_scale)
+    log_like <- c(log_like,expected_likelihood(K=1,M,Q,state_prob,x,latent_z,uniform_scale,state_scale,noise,lambda,periodic))
+    if(any(is.nan(change_u))) stop('NaN detected after M-step')
+    if((log_like[iter] - old_log_like)/abs(log_like[iter]) < tol) break
+    old_log_like <- log_like[iter]
+    # if(max(change_u)<1.e-5) break
+  }
+  if(iter==iters) print("Failed to Converge!") # Warn user that E-M did not converge
+  
+  # Get maximum probability path using the Viterbi algorithm
+  if(get_viterbi){
+    states <- expand.grid(t=1:M,q=1:Q)
+    viterbi_path <- get_viterbi_path(K=1,M,Q,x,latent_z,latent_tau,state_scale,
+                                     uniform_scale,transition_tau,transition_scale,
+                                     noise,init_t_range,parallel,periodic)
+    viterbi_z <- apply(viterbi_path,2,function(x){latent_z[states$t[x]]})
+    viterbi_tau <- apply(viterbi_path,2,function(x){latent_tau[states$t[x]]})
+  }else{
+    viterbi_path <- NULL
+    viterbi_z <- NULL
+    viterbi_tau <- NULL
+  }
+  # Return list of values
+  # NOTE: May want to make this into a custom R object. May not have time
+  #           before I go though. Not sure how important it is.
+  list(z=latent_z,tau=latent_tau,u=uniform_scale,noise=noise, scales=scales, states=states,
+       viterbi_path=viterbi_path,viterbi_z=viterbi_z,viterbi_tau=viterbi_tau,log_like=log_like)
+}
+
+online_residuals <- function(t,x,aligned_obj, standardize=FALSE){
+  fit_z <- aligned_obj$viterbi_z
+  model_fit <- fit_z[t,1]*aligned_obj$u[1]*
+                          aligned_obj$scales[aligned_obj$states$q[aligned_obj$viterbi_path[t,1]]]
+  resid <- x-model_fit
+  if(standardize) resid <- (resid-mean(resid))/sqrt(aligned_obj$noise)
+  resid
+}
+
+
