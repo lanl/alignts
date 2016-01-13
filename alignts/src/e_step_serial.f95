@@ -125,8 +125,8 @@ DO kk=1,K
                 ii  = (j-1)*ntars+1
                 iii = (j-1)*ntars+ntars
                 obs_likelihood(:) = &
-                        normC*EXP(-(x(i,kk) - z(states(transition_inds(ii:iii,2),1))* & 
-                        u(kk)*phi(states(transition_inds(ii:iii,2),2)))**2/(2.0d0*noise))
+                        normC*EXP(-(x(i,kk) - z(states_0(transition_inds(ii:iii,2),1))* & 
+                        u(kk)*phi(states_0(transition_inds(ii:iii,2),2)))**2/(2.0d0*noise))
                 forward_mat(i+1,transition_inds(ii:iii,2)) = &
                         forward_mat(i+1,transition_inds(ii:iii,2)) + &
                         forward_mat(i,j)*obs_likelihood(:)*transition_prob(ii:iii)
@@ -149,8 +149,8 @@ DO kk=1,K
                 ii  = (j-1)*ntars+1
                 iii = (j-1)*ntars+ntars
                 obs_likelihood(:) = &
-                        normC*EXP(-(x(N-i+1,kk) - z(states(transition_inds(ii:iii,2),1))* &
-                        u(kk)*phi(states(transition_inds(ii:iii,2),2)))**2/(2.0d0*noise))
+                        normC*EXP(-(x(N-i+1,kk) - z(states_0(transition_inds(ii:iii,2),1))* &
+                        u(kk)*phi(states_0(transition_inds(ii:iii,2),2)))**2/(2.0d0*noise))
                 backward_mat(j,N-i+1) = & 
                         DOT_PRODUCT(transition_prob(ii:iii), & 
                                 obs_likelihood(:)*backward_mat(transition_inds(ii:iii,2),N-i+2))
