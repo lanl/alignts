@@ -155,7 +155,7 @@ expected_likelihood <- function(K,M,Q,state_prob,x,z,u,scale,noise,lambda,period
 # Update of the uniform scaling parameter u_k using equation on Page 4 of
 #     2004 paper.
 #
-m_step_u <- function(K,M,Q,state_prob,x,z,tau,scale,n_k,lambda,noise,periodic){
+m_step_u <- function(K,M,Q,state_prob,x,z,tau,scale,n_k,lambda,noise,periodic,training = TRUE){
   u <- rep(0,K)
   for (k in 1:K){
     num <- 0
@@ -168,13 +168,14 @@ m_step_u <- function(K,M,Q,state_prob,x,z,tau,scale,n_k,lambda,noise,periodic){
         denom <- denom + (z[m]*scale[[q]])^2*(sum(state_prob[[k]][state_ind,not_na]))/noise
       }
       # Added term to deal with the u-dependence of the penalty
-      if(m != M) denom <- denom + 2*lambda*(z[m+1] - z[m])^2/K
-      if(periodic && m==M) denom <- denom + 2*lambda*(z[1] - z[M])^2/K
+      if(m != M && training) denom <- denom + 2*lambda*(z[m+1] - z[m])^2/K
+      if(periodic && m==M && training) denom <- denom + 2*lambda*(z[1] - z[M])^2/K
     }
     u[k] <- num/denom
   }
   u
 }
+
 
 #####
 # Core function for running the alignment algorithm.
@@ -239,7 +240,7 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
   cat("Model Fitting Progress\n Iteration:")
   old_log_like <- -Inf
   for (iter in 1:iters){
-    if(iter%%max(1,floor(iters/10)) == 0) cat(" ",iter)    
+    if(iter%%5 == 0) cat(" ",iter)    
     old_noise <- noise
     old_latent_z <- latent_z
     old_uniform_scale <- uniform_scale
@@ -253,7 +254,8 @@ align_series_EM <- function(t,x,J=5,upsample_factor=2,
     if (Q > 1) state_scale <- m_step_phi(K,M,Q,state_prob,x,uniform_scale,
                          latent_z,noise,lambda,periodic)
     uniform_scale <- m_step_u(K,M,Q,state_prob,x,latent_z,state_tau,
-                              state_scale,N_k,lambda,noise,periodic)
+                              state_scale,N_k,lambda,noise,periodic,
+                              training = TRUE)
     change_z <- abs(latent_z-old_latent_z)
     change_noise <- abs(noise-old_noise)
     change_u <- abs(uniform_scale-old_uniform_scale)
@@ -355,7 +357,8 @@ predict_series_EM <- function(t,x,aligned_obj, tol = 1.e-5,J=5,
                          uniform_scale,transition_tau,transition_scale,
                          noise,init_t_range,parallel,periodic)
     uniform_scale <- m_step_u(K,M,Q,state_prob,x,latent_z,state_tau,
-                              state_scale,N_k,lambda,noise,periodic)
+                              state_scale,N_k,lambda,noise,periodic,
+                              training = FALSE)
     
     change_u <- abs(uniform_scale-old_uniform_scale)
     log_like <- c(log_like,expected_likelihood(K,M,Q,state_prob,x,latent_z,uniform_scale,state_scale,noise,lambda,periodic))
@@ -460,8 +463,8 @@ online_align <- function(t,x,aligned_obj, tol = 1.e-5,J=5,
                          uniform_scale,transition_tau,transition_scale,
                          noise,init_t_range,parallel,periodic)
     uniform_scale <- m_step_u(K=1,M,Q,state_prob,x,latent_z,state_tau,
-                              state_scale,N_k,lambda,noise,periodic)
-    
+                              state_scale,N_k,lambda,noise,periodic,
+                              training=FALSE)
     change_u <- abs(uniform_scale-old_uniform_scale)
     log_like <- c(log_like,expected_likelihood(K=1,M,Q,state_prob,x,latent_z,uniform_scale,state_scale,noise,lambda,periodic))
     if(any(is.nan(change_u))) stop('NaN detected after M-step')

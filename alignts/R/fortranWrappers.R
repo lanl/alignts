@@ -67,7 +67,6 @@ get_viterbi_path <- function(K,M,Q,x,z,tau,scale,u,transition_tau,
   if(parallel){
     if(periodic){
       get_viterbi_path_call <- get_viterbi_path_periodic
-      print("Warning: Viterbi path may not be accurate for periodic boundaries. Work in progress.")
     } else{
       get_viterbi_path_call <- get_viterbi_path_parallel
     }

@@ -29,7 +29,7 @@ plot_raw <- function(t,x,lwd=2,xlab="",ylab=""){
 #     series. This shows the approximate alignment with the variability 
 #     around the collective latent profile being the scaled noise.
 #
-plot_aligned_x <- function(t,x,aligned_obj,type="p"){
+plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Scaled Observed \n Output",main="Viterbi Path"){
   x_scaled <- x
   n_series <- length(x)
   states <- aligned_obj$states
@@ -37,8 +37,8 @@ plot_aligned_x <- function(t,x,aligned_obj,type="p"){
   if (is.list(t)){
     for (i in 1:n_series) x_scaled[[i]]<- x[[i]]/aligned_obj$u[i]/aligned_obj$scales[states$q[aligned_obj$viterbi_path[t[[i]],i]]]
     par(mar=c(6,6,2,2))
-    plot(unlist(t),unlist(x_scaled),type="n",ylab="Scaled Observed \n Output",xlab="Latent Time",
-         main="Viterbi Path",cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
+    plot(unlist(t),unlist(x_scaled),type="n",ylab=ylab,xlab=xlab,
+         main=main,cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
     cols <- rgb((1:n_series-1)/n_series,0,1-(1:n_series-1)/n_series,0.4)
     for (i in 1:n_series) points(tau[t[[i]],i],x_scaled[[i]],pch=19,cex=0.7,col=cols[i],type=type,lwd=3)
     lines(aligned_obj$tau,aligned_obj$z,type="l",lwd=3)
@@ -46,8 +46,8 @@ plot_aligned_x <- function(t,x,aligned_obj,type="p"){
   }else{
     for (i in 1:n_series) x_scaled[[i]]<- x[[i]]/aligned_obj$u[i]/aligned_obj$scales[states$q[aligned_obj$viterbi_path[t,i]]]
     par(mar=c(6,6,2,2))
-    plot(rep(t,n_series),unlist(x_scaled),type="n",ylab="Scaled Observed \n Output",xlab="Latent Time",
-         main="Viterbi Path",cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
+    plot(rep(t,n_series),unlist(x_scaled),type="n",ylab=ylab,xlab=xlab,
+         main=main,cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
     cols <- rgb((1:n_series-1)/n_series,0,1-(1:n_series-1)/n_series,0.4)
     for (i in 1:n_series) points(tau[t,i],x_scaled[[i]],pch=19,cex=0.7,col=cols[i],type=type,lwd=3)
     lines(aligned_obj$tau,aligned_obj$z,type="l",lwd=3)
@@ -153,15 +153,15 @@ warp_steps_illustrate <- function(t, x, aligned_obj, series_ind, plot_every=1, p
       
 }
 
-plot_residuals <- function(t,residuals){
+plot_residuals <- function(t,residuals,xlab="Observed Time",ylab="Model Residuals"){
   n_series <- length(residuals)
   cols <- rgb((seq_along(residuals)-1)/n_series,0,1-(seq_along(residuals)-1)/n_series,0.6)
   if(is.list(t)){
-    plot(unlist(t),unlist(residuals),type="n", ylab="Standardized Model Residuals",xlab="Observed Time",
+    plot(unlist(t),unlist(residuals),type="n", ylab=ylab,xlab=xlab,
          cex.axis=1.4,cex.lab=1.4)
     mapply(lines,t,residuals,col=cols,lwd=2)
   } else{
-    plot(rep(t,n_series),unlist(residuals),type="n", ylab="Standardized Model Residuals",xlab="Observed Time",
+    plot(rep(t,n_series),unlist(residuals),type="n", ylab=ylab,xlab=xlab,
          cex.axis=1.4,cex.lab=1.4)
     dummy <- lapply(1:n_series,function(i,r,t,cols){lines(t,r[[i]],col=cols[i],lwd=2)},r=residuals,t=t,cols=cols)
   }
