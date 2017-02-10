@@ -2,20 +2,22 @@
 ! Function for calculating the state probabilities for the HMM model
 !
 !
-SUBROUTINE get_viterbi_path_serial(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,phi,t_tau,t_scale,best_path)
+SUBROUTINE get_viterbi_path_serial(ncores,K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_n,init_t_range,u,phi,t_tau,&
+t_scale,V_mat,possible_paths,best_path)
 
 USE OMP_LIB
-INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
+INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K,ncores
 INTEGER, INTENT(IN) :: states(M*Q,2)
 INTEGER, INTENT(OUT) :: best_path(N,K)
 INTEGER(KIND=4) :: i, j, kk,ii
 INTEGER(KIND=4) :: S
-INTEGER(KIND=4) :: target_ind, target_m, target_q,init_t_range
+INTEGER(KIND=4) :: target_ind, target_m, target_q,init_n
+INTEGER(KIND=4) :: init_t_range(init_n)
 INTEGER(KIND=4) :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
-INTEGER(KIND=4) :: tar_inds(n_tau*3)
+INTEGER(KIND=4) :: tar_inds(n_tau*3), possible_paths(M*Q,N)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
-DOUBLE PRECISION :: V_mat(M*Q,N), possible_paths(M*Q,N), log_likelihood(n_tau*3)
+DOUBLE PRECISION :: V_mat(M*Q,N), log_likelihood(n_tau*3)
 DOUBLE PRECISION :: transition_prob(M*Q*n_tau*3),prob_sum
 DOUBLE PRECISION :: state_p(n_tau*3)
 
@@ -98,10 +100,10 @@ DO kk=1,K
     ! Initialize the forward and backward probability matrices
     DO i=1,Q
         IF (x(1,kk) .LT. -1.d+24) THEN
-            V_mat((1+(i-1)*M):(init_t_range+(i-1)*M),1) = LOG(1.0d0/(1.d0*init_t_range*Q))
+            V_mat(init_t_range+(i-1)*M,1) = LOG(1.0d0/(1.d0*init_n*Q))
         ELSE
-            V_mat((1+(i-1)*M):(init_t_range+(i-1)*M),1) = LOG(1.0d0/(1.d0*init_t_range*Q)) - &
-                    (x(1,kk) - z(1:init_t_range)*u(kk)*phi(i))**2/(2.0d0*noise)
+            V_mat(init_t_range+(i-1)*M,1) = LOG(1.0d0/(1.d0*init_n*Q)) - &
+                    (x(1,kk) - z(init_t_range)*u(kk)*phi(i))**2/(2.0d0*noise)
         ENDIF
     ENDDO
     ! Iterate over observations within a series

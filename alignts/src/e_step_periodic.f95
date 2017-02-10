@@ -2,14 +2,15 @@
 ! Function for calculating the state probabilities for the HMM model
 !
 !
-SUBROUTINE e_step_periodic(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,phi,t_tau,t_scale,state_prob)
+SUBROUTINE e_step_periodic(ncores,K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_n,init_t_range,u,phi,t_tau, &
+t_scale,forward_mat,backward_mat,transition_prob,transition_inds,state_prob)
 
 USE OMP_LIB
-INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K
+INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K,ncores
 INTEGER :: i, j, kk, ii,iii
 INTEGER(KIND=4) :: S
-INTEGER :: target_ind, target_m, target_q, init_t_range
-INTEGER, INTENT(IN) :: states(M*Q,2)
+INTEGER :: target_ind, target_m, target_q, init_n
+INTEGER, INTENT(IN) :: states(M*Q,2), init_t_range(init_n)
 INTEGER :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
@@ -17,6 +18,8 @@ DOUBLE PRECISION, INTENT(OUT) :: state_prob(M*Q,N,K)
 DOUBLE PRECISION, PARAMETER :: pi = ACOS(-1.d0)
 DOUBLE PRECISION :: forward_mat(N+1,0:(M*Q),K), backward_mat(0:(M*Q),N+1,K), obs_likelihood(n_tau*3,K)
 DOUBLE PRECISION :: transition_prob(M*Q*n_tau*3),prob_sum, normC, p_scale, p_tau
+
+CALL omp_set_num_threads(ncores)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!
 ! Set some constants and initialize arrays to zero
@@ -101,7 +104,7 @@ ENDDO
 DO kk=1,K
     ! Initialize the forward and backward probability matrices
     DO i=1,Q
-        forward_mat(1,(1+(i-1)*M):(init_t_range+(i-1)*M),kk) = 1.0d0/(1.d0*init_t_range*Q)
+        forward_mat(1,init_t_range+(i-1)*M,kk) = 1.0d0/(1.d0*init_n*Q)
     ENDDO
     prob_sum = SUM(forward_mat(1,1:S,kk))
     if(prob_sum .GT. 0) forward_mat(1,1:S,kk) = forward_mat(1,1:S,kk)/prob_sum

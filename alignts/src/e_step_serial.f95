@@ -2,14 +2,15 @@
 ! Function for calculating the state probabilities for the HMM model
 !
 !
-SUBROUTINE e_step_serial(K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_t_range,u,phi,t_tau,t_scale,state_prob)
+SUBROUTINE e_step_serial(ncores,K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_n,init_t_range,u,phi,t_tau,&
+t_scale,forward_mat,backward_mat,transition_prob,transition_inds,state_prob)
 
 USE OMP_LIB
-INTEGER(KIND=4), INTENT(IN) :: n_tau,n_scale,M,Q,N,K
+INTEGER(KIND=4), INTENT(IN) :: n_tau,n_scale,M,Q,N,K,ncores
 INTEGER(KIND=4) :: i, j, kk, ii,iii
 INTEGER(KIND=4) :: S
-INTEGER(KIND=4) :: target_ind, target_m, target_q, init_t_range
-INTEGER, INTENT(IN) :: states(M*Q,2)
+INTEGER(KIND=4) :: target_ind, target_m, target_q, init_n
+INTEGER, INTENT(IN) :: states(M*Q,2), init_t_range(init_n)
 INTEGER(KIND=4) :: tau_step,scale_step,ntars,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
@@ -100,7 +101,7 @@ DO kk=1,K
     forward_mat(:,:) = 0.0d0
     backward_mat(:,:) = 0.0d0
     DO i=1,Q
-        forward_mat(1,(1+(i-1)*M):(init_t_range+(i-1)*M)) = 1.0d0/(1.d0*init_t_range*Q)
+        forward_mat(1,init_t_range+(i-1)*M) = 1.0d0/(1.d0*init_n*Q)
     ENDDO
     backward_mat(:,N+1) = 1.0d0
     ! Iterate over observations in each replicate series

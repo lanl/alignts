@@ -9,15 +9,16 @@
 #####
 # Plot the raw (x,t) data from the unevenly sampled lists
 #
-plot_raw <- function(t,x,lwd=2,xlab="",ylab=""){
+plot_raw <- function(t,x,lwd=2,xlab="",ylab="", cex.label=1.7){
   n_series <- length(x)
+  par(mar = c(5,5,2,2))
   if(is.list(t)){
-    plot(unlist(t),unlist(x),type="n",xlab=xlab,ylab=ylab,cex.lab=1.5,cex.axis=1.5)
+    plot(unlist(t),unlist(x),type="n",xlab=xlab,ylab=ylab,cex.lab=cex.label,cex.axis=cex.label)
     for (i in 1:n_series) {
       lines(t[[i]],x[[i]],lwd=lwd,col=rgb((i-1)/n_series,0,1-(i-1)/n_series,0.6))
     }
   } else{
-    plot(rep(t,n_series),unlist(x),type="n",xlab=xlab,ylab=ylab,cex.lab=1.5,cex.axis=1.5)
+    plot(rep(t,n_series),unlist(x),type="n",xlab=xlab,ylab=ylab,cex.lab=cex.label,cex.axis=cex.label)
     for (i in 1:n_series) {
       lines(t,x[[i]],lwd=lwd,col=rgb((i-1)/n_series,0,1-(i-1)/n_series,0.6))
     }
@@ -29,7 +30,7 @@ plot_raw <- function(t,x,lwd=2,xlab="",ylab=""){
 #     series. This shows the approximate alignment with the variability 
 #     around the collective latent profile being the scaled noise.
 #
-plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Scaled Observed \n Output",main="Viterbi Path"){
+plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Scaled Observed Output",main="",cex.label=1.7){
   x_scaled <- x
   n_series <- length(x)
   states <- aligned_obj$states
@@ -38,7 +39,7 @@ plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Sca
     for (i in 1:n_series) x_scaled[[i]]<- x[[i]]/aligned_obj$u[i]/aligned_obj$scales[states$q[aligned_obj$viterbi_path[t[[i]],i]]]
     par(mar=c(6,6,2,2))
     plot(unlist(t),unlist(x_scaled),type="n",ylab=ylab,xlab=xlab,
-         main=main,cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
+         main=main,cex.lab=cex.label,cex.axis=cex.label,cex.main=cex.label)
     cols <- rgb((1:n_series-1)/n_series,0,1-(1:n_series-1)/n_series,0.4)
     for (i in 1:n_series) points(tau[t[[i]],i],x_scaled[[i]],pch=19,cex=0.7,col=cols[i],type=type,lwd=3)
     lines(aligned_obj$tau,aligned_obj$z,type="l",lwd=3)
@@ -47,7 +48,7 @@ plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Sca
     for (i in 1:n_series) x_scaled[[i]]<- x[[i]]/aligned_obj$u[i]/aligned_obj$scales[states$q[aligned_obj$viterbi_path[t,i]]]
     par(mar=c(6,6,2,2))
     plot(rep(t,n_series),unlist(x_scaled),type="n",ylab=ylab,xlab=xlab,
-         main=main,cex.lab=1.4,cex.axis=1.4,cex.main=1.35)
+         main=main,cex.lab=cex.label,cex.axis=cex.label,cex.main=cex.label)
     cols <- rgb((1:n_series-1)/n_series,0,1-(1:n_series-1)/n_series,0.4)
     for (i in 1:n_series) points(tau[t,i],x_scaled[[i]],pch=19,cex=0.7,col=cols[i],type=type,lwd=3)
     lines(aligned_obj$tau,aligned_obj$z,type="l",lwd=3)
@@ -59,8 +60,9 @@ plot_aligned_x <- function(t,x,aligned_obj,type="p",xlab="Latent Time",ylab="Sca
 # Plot an observed time series with it's alignment to the characteristic
 #     latent profile. Useful for illustrating exactly what the method is doing
 #
-warp_example <- function(t, x, aligned_obj, series_ind, plot_every=1){
+warp_example <- function(t, x, aligned_obj, series_ind, plot_every=1,cex.label=1.7){
   # v_inds is the vector of viterbi states for the HMM
+  par(mar = c(5,5,2,2))
   n <- length(x[[series_ind]])
   plot_inds <- seq(1,n,by=plot_every)
   x <- x[[series_ind]][plot_inds]
@@ -74,7 +76,7 @@ warp_example <- function(t, x, aligned_obj, series_ind, plot_every=1){
   M <- length(z)
   v_inds <- (aligned_obj$viterbi_path[,series_ind]-1) %% M +1
   plot(t,x,pch=19,cex=0.8,xlab="Time",ylab="Output", main=paste("Series #",series_ind,sep=""),
-       xlim=range(tau),ylim=range(c(x,z)),col=rgb(1,0,0,0.75),cex.lab=1.4,cex.axis=1.4)
+       xlim=range(tau),ylim=range(c(x,z)),col=rgb(1,0,0,0.75),cex.lab=cex.label,cex.axis=cex.label)
   lines(tau,z,lwd=3)
   for(i in 1:length(x)) segments(x0 = t[i],y0=x[i],
                                  x1=tau[v_inds[t[i]]],y1=z[v_inds[t[i]]],
@@ -86,7 +88,8 @@ warp_example <- function(t, x, aligned_obj, series_ind, plot_every=1){
 #     latent profile, but in steps so that each parameter's effect can be
 #     views: global scaling, then local scaling, then time warping.
 #
-warp_steps_illustrate <- function(t, x, aligned_obj, series_ind, plot_every=1, plot_separate=FALSE){
+warp_steps_illustrate <- function(t, x, aligned_obj, series_ind, plot_every=1, plot_separate=FALSE,cex.label=1.7){
+  par(mar = c(5,5,2,2))
   n <- length(x[[series_ind]])
   plot_inds <- seq(1,n,by=plot_every)
   z <- aligned_obj$z
@@ -103,7 +106,7 @@ warp_steps_illustrate <- function(t, x, aligned_obj, series_ind, plot_every=1, p
     t <- t[plot_inds]    
   }
   point_size = 1.0
-  text_size = 1.4
+  text_size = cex.label
   line_size = 2
   curve_size = 4
   if(plot_separate){
@@ -153,16 +156,17 @@ warp_steps_illustrate <- function(t, x, aligned_obj, series_ind, plot_every=1, p
       
 }
 
-plot_residuals <- function(t,residuals,xlab="Observed Time",ylab="Model Residuals"){
+plot_residuals <- function(t,residuals,xlab="Observed Time",ylab="Model Residuals",cex.label=1.7){
+  par(mar = c(5,5,2,2))
   n_series <- length(residuals)
   cols <- rgb((seq_along(residuals)-1)/n_series,0,1-(seq_along(residuals)-1)/n_series,0.6)
   if(is.list(t)){
     plot(unlist(t),unlist(residuals),type="n", ylab=ylab,xlab=xlab,
-         cex.axis=1.4,cex.lab=1.4)
+         cex.axis=cex.label,cex.lab=cex.label)
     mapply(lines,t,residuals,col=cols,lwd=2)
   } else{
     plot(rep(t,n_series),unlist(residuals),type="n", ylab=ylab,xlab=xlab,
-         cex.axis=1.4,cex.lab=1.4)
+         cex.axis=cex.label,cex.lab=cex.label)
     dummy <- lapply(1:n_series,function(i,r,t,cols){lines(t,r[[i]],col=cols[i],lwd=2)},r=residuals,t=t,cols=cols)
   }
 }

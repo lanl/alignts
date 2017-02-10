@@ -2,11 +2,11 @@
 ! Function for calculating the state probabilities for the HMM model
 !
 !
-SUBROUTINE get_viterbi_path_periodic(ncores,K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_n,init_t_range,&
-u,phi,t_tau,t_scale,V_mat,possible_paths,best_path)
+SUBROUTINE get_viterbi_path_serial_periodic(ncores,K,M,Q,N,n_tau,n_scale,x,z,states,noise,init_n,&
+init_t_range,u,phi,t_tau,t_scale,V_mat,possible_paths,best_path)
 
 USE OMP_LIB
-INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K, ncores
+INTEGER, INTENT(IN) :: n_tau,n_scale,M,Q,N,K,ncores
 INTEGER, INTENT(IN) :: states(M*Q,2)
 INTEGER, INTENT(OUT) :: best_path(N,K)
 INTEGER(KIND=4) :: i, j, kk,ii
@@ -14,14 +14,13 @@ INTEGER(KIND=4) :: S
 INTEGER(KIND=4) :: target_ind, target_m, target_q,init_n
 INTEGER(KIND=4) :: init_t_range(init_n)
 INTEGER(KIND=4) :: tau_step,scale_step,transition_inds(M*Q*n_tau*3,2),states_0(0:(M*Q),2)
-INTEGER(KIND=4) :: tar_inds(n_tau*3), possible_paths(M*Q,N,K)
+INTEGER(KIND=4) :: tar_inds(n_tau*3), possible_paths(M*Q,N)
 DOUBLE PRECISION, INTENT(IN) :: t_tau(n_tau), t_scale(n_scale)
 DOUBLE PRECISION, INTENT(IN) :: x(N,K),z(M),noise,u(K),phi(Q)
-DOUBLE PRECISION :: V_mat(M*Q,N,K), log_likelihood(n_tau*3,K)
+DOUBLE PRECISION :: V_mat(M*Q,N), log_likelihood(n_tau*3)
 DOUBLE PRECISION :: transition_prob(M*Q*n_tau*3),prob_sum
-DOUBLE PRECISION :: state_p(n_tau*3,K)
+DOUBLE PRECISION :: state_p(n_tau*3)
 
-CALL omp_set_num_threads(ncores)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!
 ! Set some constants and initialize arrays to zero
@@ -30,13 +29,11 @@ CALL omp_set_num_threads(ncores)
 S = M*Q
 ! Number of states that can be transitioned to from a given state
 ntars = 3*n_tau
-! Initialize log_likelihood to 0 to V_mat to all -Infinity
-log_likelihood(:,:) = 0.d0
-V_mat(:,:,:) = LOG(log_likelihood(1,1))
 ! states_0 extends the states array to include the "dump" state for dealing
 !     with boundary transitions
 states_0(0,:) = [1,1]
 states_0(1:S,:) = states
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!
 ! Calculate the transition matrix of the HMM
@@ -92,17 +89,16 @@ ENDDO
 ! Run forward-backward algoritm for calculating the state probabilities
 ! k iterates over the replicate time series
 !
-! OpenMP parallelism for shared memory, multi-core parallelization
-!     Be careful of race conditions if you edit this!!!
-!
-!$OMP PARALLEL DO DEFAULT(SHARED), FIRSTPRIVATE(i,j,num_tars,tar_inds,ii)
 DO kk=1,K
+    ! Initialize log_likelihood to 0 to V_mat to all -Infinity
+    log_likelihood(:) = 0.d0
+    V_mat(:,:) = LOG(log_likelihood(1))
     ! Initialize the forward and backward probability matrices
     DO i=1,Q
         IF (x(1,kk) .LT. -1.d+24) THEN
-            V_mat(init_t_range+(i-1)*M,1,kk) = LOG(1.0d0/(1.d0*init_n*Q))
+            V_mat(init_t_range+(i-1)*M,1) = LOG(1.0d0/(1.d0*init_n*Q))
         ELSE
-            V_mat(init_t_range+(i-1)*M,1,kk) = LOG(1.0d0/(1.d0*init_n*Q)) - &
+            V_mat(init_t_range+(i-1)*M,1) = LOG(1.0d0/(1.d0*init_n*Q)) - &
                     (x(1,kk) - z(init_t_range)*u(kk)*phi(i))**2/(2.0d0*noise)
         ENDIF
     ENDDO
@@ -117,28 +113,27 @@ DO kk=1,K
         DO j=1,S
             tar_inds = transition_inds(((j-1)*ntars+1):(j*ntars),2)
             IF (x(i,kk) .LT. -1.d+24) THEN
-                log_likelihood(:,kk) = 0.0
+                log_likelihood(:) = 0.0
             ELSE
-                log_likelihood(:,kk) = &
+                log_likelihood(:) = &
                         -(x(i,kk) - z(states(tar_inds,1))*u(kk)*phi(states(tar_inds,2)))**2/(2.0d0*noise)
             ENDIF
-            state_p(:,kk) = LOG(transition_prob(((j-1)*ntars+1):(j*ntars))) + &
-                    V_mat(j,i-1,kk) + &
-                    log_likelihood(:,kk)
+            state_p(:) = LOG(transition_prob(((j-1)*ntars+1):(j*ntars))) + &
+                    V_mat(j,i-1) + &
+                    log_likelihood(:)
             DO ii=1,ntars
-                IF ( state_p(ii,kk) .GT. V_mat(tar_inds(ii),i,kk) ) THEN
-                    V_mat(tar_inds(ii),i,kk) = state_p(ii,kk)
-                    possible_paths(tar_inds(ii),i-1,kk) = j
+                IF ( state_p(ii) .GT. V_mat(tar_inds(ii),i) ) THEN
+                    V_mat(tar_inds(ii),i) = state_p(ii)
+                    possible_paths(tar_inds(ii),i-1) = j
                 END IF
             ENDDO
         ENDDO
     ENDDO
     ! Find final state with maximum probability and work backwards to get the full path
-    best_path(N,kk) = MAXLOC(V_mat(:,N,kk),1)
+    best_path(N,kk) = MAXLOC(V_mat(:,N),1)
     DO i=N-1,1,-1
-        best_path(i,kk) = possible_paths(best_path(i+1,kk),i,kk)
+        best_path(i,kk) = possible_paths(best_path(i+1,kk),i)
     ENDDO
 ENDDO
-!$OMP END PARALLEL DO
 
 END

@@ -15,19 +15,25 @@
 #     parallelized using OpenMP to contribute further performance boosts.
 #
 e_step <- function(K,M,Q,x,z,tau,scale,state_prob,u,transition_tau,
-                   transition_scale,noise,init_t_range,parallel,periodic){
-  if (parallel){
+                   transition_scale,noise,init_t_range,parallel_cores,periodic){
+  if (parallel_cores > 1){
     if(periodic){
       e_step_call <- e_step_periodic
     } else{
       e_step_call <- e_step_parallel
     }
   }else{
-    e_step_call <- e_step_serial
+    if(periodic){ 
+      e_step_call <- e_step_serial_periodic
+    } else{
+      e_step_call <- e_step_serial
+    }
   }
   states <- expand.grid(t=1:M,q=1:Q)
   s <- nrow(states)
   N <- nrow(x)
+  init_n <- length(init_t_range)
+  init_t_range <- ((init_t_range - 1) %% M) + 1
   # R-FORTRAN interface does not like passing NA, so passing bad value in place
   #     unlikely to ever come across legit data that small.
   x[which(is.na(x))] <- -1.e25
@@ -35,6 +41,7 @@ e_step <- function(K,M,Q,x,z,tau,scale,state_prob,u,transition_tau,
   n_scale <- length(transition_scale)
   state_prob <- rep(0,s*N*K)
   retdata <- .Fortran(e_step_call,
+                      ncores = as.integer(parallel_cores),
                       K=as.integer(K),
                       M=as.integer(M),
                       Q=as.integer(Q),
@@ -45,11 +52,16 @@ e_step <- function(K,M,Q,x,z,tau,scale,state_prob,u,transition_tau,
                       z = as.double(z),
                       states=as.matrix(states),
                       noise = as.double(noise),
+                      init_n = as.integer(init_n),
                       init_t_range = as.integer(init_t_range),
                       u=as.double(u),
                       phi=as.double(scale),
                       t_tau=as.double(transition_tau),
                       t_scale=as.double(transition_scale),
+                      forward_mat=as.double(rep(0,(M*Q+1)*(N+1)*K)),
+                      backward_mat=as.double(rep(0,(M*Q+1)*(N+1)*K)),
+                      transition_prob=as.double(rep(0,M*Q*n_tau*3)),
+                      transition_inds=as.integer(rep(0,M*Q*n_tau*3*2)),
                       state_prob=as.double(state_prob))$state_prob
   # Reshape output from FORTRAN routine into the necessary list of matrices
   state_prob <- list()
@@ -63,19 +75,25 @@ e_step <- function(K,M,Q,x,z,tau,scale,state_prob,u,transition_tau,
 #     also parallelized using OpenMP to contribute further performance boosts.
 #
 get_viterbi_path <- function(K,M,Q,x,z,tau,scale,u,transition_tau,
-                   transition_scale,noise,init_t_range,parallel,periodic){
-  if(parallel){
+                   transition_scale,noise,init_t_range,parallel_cores,periodic){
+  if(parallel_cores){
     if(periodic){
       get_viterbi_path_call <- get_viterbi_path_periodic
     } else{
       get_viterbi_path_call <- get_viterbi_path_parallel
     }
   } else {
-    get_viterbi_path_call <- get_viterbi_path_serial
+    if(periodic){
+      get_viterbi_path_call <- get_viterbi_path_serial_periodic
+    } else{
+      get_viterbi_path_call <- get_viterbi_path_serial
+    }
   }
   states <- expand.grid(t=1:M,q=1:Q)
   s <- nrow(states)
   N <- nrow(x)
+  init_n <- length(init_t_range)
+  init_t_range <- ((init_t_range - 1) %% M) + 1
   # R-FORTRAN interface does not like passing NA, so passing bad value in place
   #     unlikely to ever come across legit data that small.
   x[which(is.na(x))] <- -1.e25
@@ -83,6 +101,7 @@ get_viterbi_path <- function(K,M,Q,x,z,tau,scale,u,transition_tau,
   n_scale <- length(transition_scale)
   best_path <- rep(0,N*K)
   retdata <- .Fortran(get_viterbi_path_call,
+                      ncores = as.integer(parallel_cores),
                       K=as.integer(K),
                       M=as.integer(M),
                       Q=as.integer(Q),
@@ -91,13 +110,16 @@ get_viterbi_path <- function(K,M,Q,x,z,tau,scale,u,transition_tau,
                       n_scale=as.integer(n_scale),
                       x = as.matrix(x),
                       z = as.double(z),
-                      states=as.matrix(states),
-                      noise = as.double(noise),
+                      states = as.matrix(states),
+                      noise  = as.double(noise),
+                      init_n = as.integer(init_n),
                       init_t_range = as.integer(init_t_range),
                       u=as.double(u),
                       phi=as.double(scale),
                       t_tau=as.double(transition_tau),
                       t_scale=as.double(transition_scale),
+                      V_mat=as.double(rep(0,M*Q*N*K)),
+                      possible_paths=as.integer(rep(0,M*Q*N*K)),
                       best_path=as.integer(best_path))
   # Reshape output from FORTRAN routine into the necessary matrix
   best_path <- matrix(retdata$best_path,N,K)
