@@ -1,0 +1,12 @@
+Package: alignts
+Type: Package
+Title: alignts: Hidden Markov Model for Alignment of Replicate Time
+        Series
+Version: 0.2.2
+Date: 2016-03-11
+Author: Michael J. Grosskopf
+Maintainer: Michael J. Grosskopf <mike.grosskopf@gmail.com>
+Description: Functions to align warped, scaled, replicate time series to a latent characteristic profile.
+License: GPL-3
+NeedsCompilation: yes
+Packaged: 2017-02-02 20:36:32 UTC; mgrossko
